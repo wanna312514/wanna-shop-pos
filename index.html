@@ -7563,42 +7563,30 @@ const objToArr = (o) => o ? Object.values(o) : [];
 
 // ── SSE Listener (Realtime updates) ──
 const _sseCleanups = {};
+// ── cache เก็บ hash ของข้อมูลแต่ละ path เพื่อ detect การเปลี่ยนแปลง ──
+const _cache = {};
+
 function fbListen(path, cb) {
-  // ปิด listener เก่าถ้ามี
+  // ดึงข้อมูลครั้งแรกทันที
+  fbGet(path).then(val => {
+    _cache[path] = JSON.stringify(val);
+    cb(val);
+  });
+
+  // poll ทุก 3 วินาที — เปรียบเทียบ hash ก่อน callback เพื่อไม่ให้ re-render ไม่จำเป็น
+  const timer = setInterval(() => {
+    fbGet(path).then(val => {
+      const str = JSON.stringify(val);
+      if (str !== _cache[path]) {
+        _cache[path] = str;
+        cb(val);
+      }
+    }).catch(() => {}); // เงียบถ้า network หลุดชั่วคราว
+  }, 3000);
+
   if (_sseCleanups[path]) { _sseCleanups[path](); }
-
-  const url = `${FB_DB}/${path}.json?auth=${FB_KEY}`;
-  const es = new EventSource(url);
-  let retryCount = 0;
-
-  es.addEventListener('put', e => {
-    retryCount = 0;
-    try {
-      const msg = JSON.parse(e.data);
-      // msg.path = "/" หมายถึง full replace, msg.data = ค่าใหม่
-      cb(msg.path === '/' ? msg.data : null, msg);
-    } catch(err) { console.warn('SSE parse error:', err); }
-  });
-
-  es.addEventListener('patch', e => {
-    try {
-      const msg = JSON.parse(e.data);
-      cb(null, msg); // patch — ดึงใหม่ทั้ง path
-      fbGet(path).then(cb);
-    } catch(err) {}
-  });
-
-  es.onerror = () => {
-    retryCount++;
-    if (retryCount > 5) {
-      console.warn(`SSE ${path} reconnecting...`);
-      es.close();
-      setTimeout(() => fbListen(path, cb), 5000);
-    }
-  };
-
-  _sseCleanups[path] = () => es.close();
-  return () => es.close();
+  _sseCleanups[path] = () => clearInterval(timer);
+  return () => clearInterval(timer);
 }
 
 // ── TEST CONNECTION ──
