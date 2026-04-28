@@ -1,0 +1,20 @@
+{
+  "name": "ร้านชำ POS System",
+  "short_name": "POS ร้านชำ",
+  "description": "ระบบ POS สำหรับร้านชำ พร้อม Firebase Realtime Database",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f1117",
+  "theme_color": "#0f1117",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏪</text></svg>",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "finance"],
+  "lang": "th"
+}

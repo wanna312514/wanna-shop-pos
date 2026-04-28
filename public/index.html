@@ -2,7 +2,14 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0f1117">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="POS ร้านชำ">
+<link rel="manifest" href="manifest.json">
+
 <title>ร้านชำ POS System</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -324,6 +331,66 @@ body { padding-left: 220px; }
 .ts-topbar { display:flex;gap:10px;padding:12px 16px;background:var(--white);border-bottom:1px solid var(--border);align-items:center;flex-wrap:wrap; }
 .ts-stats { display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:12px 16px;flex-shrink:0; }
 
+
+/* ── Mobile modal slide-up fix ── */
+@media (max-width: 768px) {
+  .overlay {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+  .modal {
+    border-radius: 20px 20px 0 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 92vh;
+    overflow-y: auto;
+    padding: 20px 16px !important;
+    animation: mobModalUp 0.25s cubic-bezier(0.32,0.72,0,1);
+  }
+  @keyframes mobModalUp {
+    from { transform: translateY(100%); opacity: 0.5; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+  /* Handle bar on modals */
+  .modal::before {
+    content: '';
+    display: block;
+    width: 40px; height: 4px;
+    background: #ddd; border-radius: 2px;
+    margin: -8px auto 14px;
+  }
+  /* Bigger buttons in modals */
+  .modal-btns button { padding: 14px !important; font-size: 15px !important; min-height: 48px; }
+  .btn-red, .btn-green, .btn-blue, .btn-gray { min-height: 44px; }
+
+  /* Stock adjust buttons bigger */
+  .qb { width: 32px !important; height: 32px !important; font-size: 18px !important; }
+  .qbtn { width: 28px !important; height: 28px !important; font-size: 16px !important; }
+
+  /* Pay modal special */
+  #payOverlay .modal { padding-bottom: 24px !important; }
+  .cash-input { font-size: 28px !important; padding: 12px !important; }
+  .pay-modal .total-big { font-size: 38px !important; }
+
+  /* Form grid 1 col on mobile */
+  .form-grid { grid-template-columns: 1fr !important; }
+}
+
+
+@media (max-width: 768px) {
+  /* Hide complex columns, show simplified view */
+  .stock-table-wrap th:nth-child(3),
+  .stock-table-wrap td:nth-child(3) { display: none; }
+  .tbl { font-size: 12px !important; }
+
+  /* Profit table simplified */
+  .profit-table-wrap th:nth-child(5),
+  .profit-table-wrap td:nth-child(5),
+  .profit-table-wrap th:nth-child(6),
+  .profit-table-wrap td:nth-child(6) { display: none !important; }
+}
+
 @media print {
   #loginScreen { display:none!important; }
   .sidebar,.nav,.print-hide { display:none!important; }
@@ -347,9 +414,257 @@ body { padding-left: 220px; }
 .bc-sticker .bc-price { font-size:13px;font-weight:900;color:#E24B4A;margin-top:2px; }
 .bc-sticker .bc-shop { font-size:7px;color:#999;margin-top:1px; }
 .bc-sticker .bc-num { font-family:'Courier New',monospace;font-size:7px;color:#666;margin-top:1px; }
+
+/* ══════════════════════════════════════════════
+   📱 MOBILE RESPONSIVE — Full overhaul
+   ══════════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+  /* ── Hide desktop sidebar ── */
+  .sidebar { display: none !important; }
+  body { padding-left: 0 !important; padding-bottom: 70px !important; }
+
+  /* ── Bottom nav bar ── */
+  #mobileNav {
+    display: flex !important;
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
+    background: #0f1117;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    height: 62px;
+    align-items: center;
+    justify-content: space-around;
+    padding: 0 4px;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .mob-nav-btn {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 3px; background: none; border: none; cursor: pointer;
+    color: rgba(255,255,255,0.45); font-size: 10px; font-weight: 600;
+    padding: 6px 2px; border-radius: 10px; transition: all 0.15s;
+    font-family: inherit;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mob-nav-btn .mn-icon { font-size: 22px; line-height: 1; }
+  .mob-nav-btn.active { color: #fff; }
+  .mob-nav-btn.active .mn-icon { filter: drop-shadow(0 0 6px rgba(255,107,107,0.7)); }
+  .mob-nav-dot {
+    width: 4px; height: 4px; border-radius: 50%;
+    background: #ff6b6b; margin: 0 auto -6px;
+    opacity: 0; transition: opacity 0.15s;
+  }
+  .mob-nav-btn.active .mob-nav-dot { opacity: 1; }
+
+  /* ── More menu drawer ── */
+  #mobileMoreDrawer {
+    display: none;
+    position: fixed; bottom: 62px; left: 0; right: 0; z-index: 199;
+    background: #0f1117;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    padding: 12px 8px;
+    flex-wrap: wrap; gap: 6px;
+    justify-content: center;
+  }
+  #mobileMoreDrawer.open { display: flex; }
+  .mob-more-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    background: rgba(255,255,255,0.07); border: none; border-radius: 10px;
+    padding: 10px 12px; cursor: pointer; color: rgba(255,255,255,0.75);
+    font-size: 11px; font-weight: 600; min-width: 70px;
+    font-family: inherit;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mob-more-btn .mm-icon { font-size: 20px; }
+
+  /* ── Pages take full height ── */
+  .page { height: calc(100vh - 62px) !important; }
+  .page.active { display: flex; flex-direction: column; }
+
+  /* ── POS page mobile ── */
+  .pos-layout {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto 1fr !important;
+    height: calc(100vh - 62px) !important;
+  }
+  .pos-right {
+    display: none !important; /* shown via cart sheet */
+  }
+  .pos-right.mob-cart-open {
+    display: flex !important;
+    position: fixed; inset: 0; bottom: 62px; z-index: 150;
+    flex-direction: column;
+    animation: slideUp 0.2s ease;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+  }
+  .pos-left { height: 100%; overflow: hidden; display: flex; flex-direction: column; }
+
+  /* Cart FAB */
+  #cartFab {
+    display: flex !important;
+    position: fixed; bottom: 74px; right: 16px; z-index: 160;
+    width: 60px; height: 60px; border-radius: 50%;
+    background: var(--green); color: #fff;
+    border: none; cursor: pointer; align-items: center; justify-content: center;
+    font-size: 26px; box-shadow: 0 4px 16px rgba(29,158,117,0.5);
+    transition: transform 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #cartFab:active { transform: scale(0.92); }
+  #cartFabBadge {
+    position: absolute; top: 2px; right: 2px;
+    background: #ff6b6b; color: #fff;
+    border-radius: 50%; width: 20px; height: 20px;
+    font-size: 11px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    border: 2px solid #fff;
+  }
+
+  /* Scan bar mobile */
+  .scan-bar { padding: 8px 10px !important; gap: 6px !important; }
+  .scan-bar input { font-size: 16px !important; padding: 10px 12px !important; }
+  .scan-bar .btn-red { padding: 10px 12px !important; font-size: 13px !important; }
+
+  /* Category chips scrollable */
+  .cat-filter { flex-wrap: nowrap !important; overflow-x: auto !important; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .cat-filter::-webkit-scrollbar { display: none; }
+
+  /* Product grid larger cards on mobile */
+  .products-grid { grid-template-columns: repeat(3, 1fr) !important; gap: 8px !important; padding: 10px !important; }
+  .prod-card { padding: 10px 6px !important; }
+  .prod-emoji { font-size: 30px !important; }
+  .prod-name { font-size: 11px !important; }
+  .prod-price { font-size: 13px !important; }
+  .prod-stock { font-size: 10px !important; }
+
+  /* Cart header close btn */
+  .cart-head { padding: 10px 14px !important; }
+
+  /* Pay button full-width prominent */
+  .pay-btn { font-size: 18px !important; padding: 16px !important; }
+
+  /* Stock page mobile */
+  .stock-layout { height: calc(100vh - 62px) !important; }
+  .stock-topbar { padding: 8px 10px !important; gap: 6px !important; }
+  .stock-stats { grid-template-columns: repeat(2,1fr) !important; padding: 8px 10px !important; gap: 8px !important; }
+  .stock-table-wrap { padding: 8px 10px !important; }
+  .tbl { font-size: 12px !important; }
+  .tbl th, .tbl td { padding: 7px 8px !important; }
+
+  /* History page mobile */
+  .hist-layout { height: calc(100vh - 62px) !important; }
+  .hist-topbar { flex-wrap: wrap !important; padding: 8px 10px !important; }
+  .hist-stats { grid-template-columns: repeat(2,1fr) !important; padding: 8px 10px !important; }
+  .hist-table-wrap { padding: 0 10px 10px !important; }
+
+  /* Home page mobile */
+  #page-home > div { grid-template-columns: 1fr !important; grid-template-rows: auto !important; overflow-y: auto !important; height: calc(100vh - 62px); }
+  #page-home > div > div[style*="grid-column:1/-1"] { grid-column: 1 !important; }
+
+  /* Modals full-width on mobile */
+  .modal { width: calc(100vw - 24px) !important; max-width: 420px; margin: 12px; }
+  .overlay { align-items: flex-end !important; padding-bottom: env(safe-area-inset-bottom,0); }
+  .modal { border-radius: 20px 20px 0 0 !important; margin: 0 !important; width: 100% !important; max-height: 90vh; }
+
+  /* Pay modal mobile */
+  .pay-modal .total-big { font-size: 36px !important; }
+  .quick-cash { gap: 6px !important; }
+  .qcash-btn { padding: 12px 6px !important; font-size: 12px !important; }
+
+  /* Login box mobile */
+  .login-box { width: calc(100vw - 32px) !important; padding: 28px 20px !important; border-radius: 16px !important; }
+  .num-btn { padding: 16px !important; font-size: 22px !important; }
+
+  /* Toast bottom adjustment */
+  .toast { bottom: 74px !important; right: 12px !important; left: 12px !important; max-width: none !important; text-align: center; }
+
+  /* Expense page */
+  .profit-layout, .hist-layout, .ts-layout, .cat-layout { height: calc(100vh - 62px) !important; }
+
+  /* Form inputs bigger touch targets */
+  .form-row input, .form-row select, .form-row textarea { font-size: 16px !important; padding: 11px 12px !important; }
+  .input-sm { font-size: 16px !important; }
+
+  /* Barcode page */
+  #page-barcode.active { overflow-y: auto !important; height: calc(100vh - 62px) !important; }
+
+  /* Printer/Perm pages */
+  #page-printer.active, #page-permMgmt.active { overflow-y: auto !important; height: calc(100vh - 62px) !important; }
+}
+
+/* ── Extra small phones ── */
+@media (max-width: 380px) {
+  .products-grid { grid-template-columns: repeat(2,1fr) !important; }
+  .mob-nav-btn { font-size: 9px !important; }
+  .mob-nav-btn .mn-icon { font-size: 20px !important; }
+}
+
 </style>
 </head>
 <body>
+
+<!-- ══════════════════════════════════════════
+     📱 MOBILE BOTTOM NAV (hidden on desktop)
+     ══════════════════════════════════════════ -->
+<nav id="mobileNav" style="display:none">
+  <button class="mob-nav-btn active" id="mnb-pos" onclick="showPage('pos');mobNavActive('pos')">
+    <div class="mob-nav-dot"></div>
+    <span class="mn-icon">🛒</span>
+    <span>ขาย</span>
+  </button>
+  <button class="mob-nav-btn" id="mnb-stock" onclick="showPage('stock');mobNavActive('stock')">
+    <div class="mob-nav-dot"></div>
+    <span class="mn-icon">📦</span>
+    <span>สต๊อก</span>
+  </button>
+  <button class="mob-nav-btn" id="mnb-history" onclick="showPage('history');mobNavActive('history')">
+    <div class="mob-nav-dot"></div>
+    <span class="mn-icon">📋</span>
+    <span>ประวัติ</span>
+  </button>
+  <button class="mob-nav-btn" id="mnb-home" onclick="showPage('home');mobNavActive('home')">
+    <div class="mob-nav-dot"></div>
+    <span class="mn-icon">🏠</span>
+    <span>ภาพรวม</span>
+  </button>
+  <button class="mob-nav-btn" id="mnb-more" onclick="toggleMobMore()">
+    <div class="mob-nav-dot"></div>
+    <span class="mn-icon">⋯</span>
+    <span>เพิ่มเติม</span>
+  </button>
+</nav>
+
+<!-- More drawer -->
+<div id="mobileMoreDrawer">
+  <button class="mob-more-btn" onclick="showPage('expense');mobNavActive('expense');closeMobMore()">
+    <span class="mm-icon">🧾</span><span>รายจ่าย</span>
+  </button>
+  <button class="mob-more-btn" onclick="showPage('profit');mobNavActive('profit');closeMobMore()">
+    <span class="mm-icon">💰</span><span>กำไร</span>
+  </button>
+  <button class="mob-more-btn" onclick="showPage('barcode');mobNavActive('barcode');closeMobMore()">
+    <span class="mm-icon">🏷️</span><span>บาร์โค้ด</span>
+  </button>
+  <button class="mob-more-btn" onclick="requireOwner('timesheet');closeMobMore()">
+    <span class="mm-icon">👥</span><span>เวลางาน</span>
+  </button>
+  <button class="mob-more-btn" onclick="requireOwner('payMethodsSettings');closeMobMore()">
+    <span class="mm-icon">⚙️</span><span>วิธีชำระ</span>
+  </button>
+  <button class="mob-more-btn" onclick="requireOwner('printer');closeMobMore()">
+    <span class="mm-icon">🖨️</span><span>เครื่องปริ้น</span>
+  </button>
+  <button class="mob-more-btn" onclick="openStaffMenu();closeMobMore()">
+    <span class="mm-icon">👤</span><span>พนักงาน</span>
+  </button>
+</div>
+
+<!-- Cart FAB (mobile only) -->
+<button id="cartFab" style="display:none" onclick="toggleMobCart()">
+  🛒
+  <div id="cartFabBadge" style="display:none">0</div>
+</button>
 
 <!-- ══════════ LOGIN SCREEN ══════════ -->
 <div id="loginScreen">
@@ -2654,6 +2969,7 @@ function removeCartItem(key) {
 }
 
 function clearCart() {
+  setTimeout(updateCartFab, 50);
   cart.forEach(item => {
     if (item._quickSale) {
       prods = prods.filter(p => p.bc !== item.bc);
@@ -7058,6 +7374,132 @@ renderLoginStaffGrid();
 const shakeStyle = document.createElement('style');
 shakeStyle.textContent = '@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}';
 document.head.appendChild(shakeStyle);
+
+
+// ═══════════════════════════════════════════════
+// 📱 MOBILE JS — Bottom nav, Cart FAB, Drawer
+// ═══════════════════════════════════════════════
+
+function isMobile() { return window.innerWidth <= 768; }
+
+function mobNavActive(page) {
+  document.querySelectorAll('.mob-nav-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('mnb-' + page);
+  if (btn) btn.classList.add('active');
+  else {
+    // "more" pages — highlight more button
+    const more = document.getElementById('mnb-more');
+    if (more) more.classList.add('active');
+  }
+}
+
+function toggleMobMore() {
+  const d = document.getElementById('mobileMoreDrawer');
+  d.classList.toggle('open');
+}
+function closeMobMore() {
+  document.getElementById('mobileMoreDrawer').classList.remove('open');
+}
+
+// ── Cart FAB ──
+function toggleMobCart() {
+  if (!isMobile()) return;
+  const pr = document.querySelector('.pos-right');
+  if (!pr) return;
+  const isOpen = pr.classList.contains('mob-cart-open');
+  if (isOpen) {
+    pr.classList.remove('mob-cart-open');
+  } else {
+    pr.classList.add('mob-cart-open');
+  }
+}
+
+// Close cart sheet when clicking outside (on backdrop)
+document.addEventListener('click', e => {
+  const pr = document.querySelector('.pos-right');
+  if (!pr || !pr.classList.contains('mob-cart-open')) return;
+  if (!pr.contains(e.target) && e.target.id !== 'cartFab') {
+    pr.classList.remove('mob-cart-open');
+  }
+});
+
+function updateCartFab() {
+  if (!isMobile()) return;
+  const fab = document.getElementById('cartFab');
+  const badge = document.getElementById('cartFabBadge');
+  if (!fab) return;
+  const count = (typeof cart !== 'undefined') ? cart.reduce((s,i) => s + i.qty, 0) : 0;
+  badge.textContent = count;
+  badge.style.display = count > 0 ? 'flex' : 'none';
+  // pulse animation on update
+  fab.style.transform = 'scale(1.15)';
+  setTimeout(() => fab.style.transform = '', 150);
+}
+
+// Patch renderCart to update FAB
+const _origRenderCart = window.renderCart;
+if (typeof renderCart === 'function') {
+  window.renderCart = function() {
+    if (_origRenderCart) _origRenderCart.apply(this, arguments);
+    updateCartFab();
+    // auto-open cart sheet when item added on mobile
+    if (isMobile()) {
+      const pr = document.querySelector('.pos-right');
+      if (pr && (typeof cart !== 'undefined') && cart.length > 0) {
+        // Don't auto-open, just pulse FAB
+      }
+    }
+  };
+}
+
+// ── Close "More" drawer when tapping outside ──
+document.addEventListener('click', e => {
+  const drawer = document.getElementById('mobileMoreDrawer');
+  const moreBtn = document.getElementById('mnb-more');
+  if (drawer && drawer.classList.contains('open')) {
+    if (!drawer.contains(e.target) && e.target !== moreBtn && !moreBtn.contains(e.target)) {
+      drawer.classList.remove('open');
+    }
+  }
+});
+
+// ── Add close button to cart on mobile ──
+function addMobCartClose() {
+  if (!isMobile()) return;
+  const cartHead = document.querySelector('.cart-head');
+  if (!cartHead || cartHead.querySelector('.mob-cart-close')) return;
+  const btn = document.createElement('button');
+  btn.className = 'mob-cart-close btn-tiny';
+  btn.textContent = '✕ ปิด';
+  btn.style.cssText = 'margin-left:8px;background:var(--red-bg);color:var(--red);border-color:var(--red)';
+  btn.onclick = () => {
+    document.querySelector('.pos-right')?.classList.remove('mob-cart-open');
+  };
+  cartHead.appendChild(btn);
+}
+
+// Run on load
+window.addEventListener('DOMContentLoaded', () => {
+  updateCartFab();
+  addMobCartClose();
+  // On mobile, set default active page nav
+  if (isMobile()) mobNavActive('pos');
+});
+
+// Re-run on page show
+const _origShowPage = window.showPage;
+window.showPage = function(p) {
+  if (_origShowPage) _origShowPage(p);
+  if (isMobile()) {
+    mobNavActive(p);
+    closeMobMore();
+    // Close cart sheet when switching pages
+    const pr = document.querySelector('.pos-right');
+    if (pr && p !== 'pos') pr.classList.remove('mob-cart-open');
+    addMobCartClose();
+  }
+};
+
 
 // ═══════════════════════════════════════════════════════════
 // 🔥 FIREBASE REALTIME DATABASE — SYNC BRIDGE
