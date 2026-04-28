@@ -1,0 +1,14 @@
+{
+  "name": "pos-system-firebase",
+  "version": "1.0.0",
+  "description": "ร้านชำ POS System — Firebase Realtime Database",
+  "private": true,
+  "scripts": {
+    "dev": "npx serve public -p 3000",
+    "build": "echo 'Static site — no build step required'",
+    "deploy": "firebase deploy"
+  },
+  "devDependencies": {
+    "serve": "^14.2.3"
+  }
+}

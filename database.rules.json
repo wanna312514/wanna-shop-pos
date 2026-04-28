@@ -1,0 +1,16 @@
+{
+  "rules": {
+    // ──────────────────────────────────────────────────────────
+    // ⚠️  DEVELOPMENT RULES — เปลี่ยนก่อน production!
+    //
+    //  ตอนนี้ตั้งให้ read/write ได้เลยเพื่อทดสอบ
+    //  เมื่อพร้อม production ให้เปลี่ยนเป็น auth rules
+    // ──────────────────────────────────────────────────────────
+    ".read":  true,
+    ".write": true
+
+    // ── Production rules example (ต้องเปิด Firebase Auth ก่อน) ──
+    // ".read":  "auth != null",
+    // ".write": "auth != null"
+  }
+}
