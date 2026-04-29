@@ -7502,58 +7502,36 @@ window.showPage = function(p) {
 
 </script>
 
-<!-- Firebase REST Bridge (no SDK needed) -->
-
+<!-- Firebase SDK (compat/UMD — ไม่ต้องใช้ import) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script>
-// ═══════════════════════════════════════════════════════════════════════
-// 🔥 FIREBASE REST BRIDGE — ไม่ใช้ SDK, ใช้ fetch() + SSE แทน
-// ทำงานได้ทันที ไม่ต้องโหลดไฟล์ภายนอกใดๆ
-// ═══════════════════════════════════════════════════════════════════════
-
 (function() {
 
-const FB_DB  = "https://wanna-shop-c027d-default-rtdb.asia-southeast1.firebasedatabase.app";
-const FB_KEY = "AIzaSyBF90V_SGmAqjKvo2eV44ygBQAestcEPnY";
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyBF90V_SGmAqjKvo2eV44ygBQAestcEPnY",
+  authDomain:        "wanna-shop-c027d.firebaseapp.com",
+  databaseURL:       "https://wanna-shop-c027d-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:         "wanna-shop-c027d",
+  storageBucket:     "wanna-shop-c027d.firebasestorage.app",
+  messagingSenderId: "444336578394",
+  appId:             "1:444336578394:web:2059ebd5319cc80c145d63",
+};
 
 // ── Concurrency guards ──
 const _saving = {};
-function _guard(key, fn, delay = 300) {
+function _guard(key, fn, delay) {
   if (_saving[key]) return;
   _saving[key] = true;
-  try { fn(); } finally { setTimeout(() => { _saving[key] = false; }, delay); }
+  try { fn(); } finally { setTimeout(() => { _saving[key] = false; }, delay || 300); }
 }
 const _debTimers = {};
-function _debounce(key, fn, delay = 400) {
+function _debounce(key, fn, delay) {
   clearTimeout(_debTimers[key]);
-  _debTimers[key] = setTimeout(fn, delay);
+  _debTimers[key] = setTimeout(fn, delay || 400);
 }
 
-// ── REST helpers ──
-function fbUrl(path) {
-  return `${FB_DB}/${path}.json?auth=${FB_KEY}`;
-}
-function fbGet(path) {
-  return fetch(fbUrl(path)).then(r => r.json());
-}
-function fbSet(path, data) {
-  return fetch(fbUrl(path), {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  }).then(r => r.json());
-}
-function fbPush(path, data) {
-  return fetch(fbUrl(path), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  }).then(r => r.json());
-}
-function fbDelete(path) {
-  return fetch(fbUrl(path), { method: 'DELETE' });
-}
-
-// ── Helper ──
+// ── helpers ──
 const arrToObj = (arr, key) => {
   const o = {};
   arr.forEach(i => { if (i[key] != null) o[i[key]] = i; });
@@ -7561,285 +7539,264 @@ const arrToObj = (arr, key) => {
 };
 const objToArr = (o) => o ? Object.values(o) : [];
 
-// ── SSE Listener (Realtime updates) ──
-const _sseCleanups = {};
-// ── cache เก็บ hash ของข้อมูลแต่ละ path เพื่อ detect การเปลี่ยนแปลง ──
-const _cache = {};
-
-function fbListen(path, cb) {
-  // ดึงข้อมูลครั้งแรกทันที
-  fbGet(path).then(val => {
-    _cache[path] = JSON.stringify(val);
-    cb(val);
-  });
-
-  // poll ทุก 3 วินาที — เปรียบเทียบ hash ก่อน callback เพื่อไม่ให้ re-render ไม่จำเป็น
-  const timer = setInterval(() => {
-    fbGet(path).then(val => {
-      const str = JSON.stringify(val);
-      if (str !== _cache[path]) {
-        _cache[path] = str;
-        cb(val);
-      }
-    }).catch(() => {}); // เงียบถ้า network หลุดชั่วคราว
-  }, 3000);
-
-  if (_sseCleanups[path]) { _sseCleanups[path](); }
-  _sseCleanups[path] = () => clearInterval(timer);
-  return () => clearInterval(timer);
-}
-
-// ── TEST CONNECTION ──
-fbGet('prods').then(data => {
-  if (data && data.error) {
-    console.warn('Firebase auth error:', data.error);
-    toast('⚠️ Firebase: ' + data.error, '#BA7517');
+// ── Init ──
+let db;
+try {
+  const app = firebase.initializeApp(FIREBASE_CONFIG);
+  db = firebase.database(app);
+} catch(e) {
+  // app อาจถูก init แล้ว
+  try { db = firebase.database(firebase.app()); } catch(e2) {
+    console.error("Firebase init failed:", e2);
+    if (typeof toast === "function") toast("⚠️ Firebase offline", "#BA7517");
     return;
   }
-  console.log('🔥 Firebase REST connected');
-  toast('🔥 เชื่อมต่อ Firebase แล้ว', '#185FA5');
-  startBridge(data);
-}).catch(e => {
-  console.warn('Firebase REST failed:', e.message);
-  toast('⚠️ Firebase offline — ข้อมูลเฉพาะเครื่อง', '#BA7517');
+}
+
+const ref  = (path) => db.ref(path);
+const fbSet  = (path, data) => ref(path).set(data);
+const fbPush = (path, data) => ref(path).push(data);
+const fbDel  = (path)       => ref(path).remove();
+
+console.log("🔥 Firebase SDK connected");
+if (typeof toast === "function") setTimeout(() => toast("🔥 เชื่อมต่อ Firebase แล้ว", "#185FA5"), 1000);
+
+// ── LISTEN (realtime) ──
+ref("prods").on("value", snap => {
+  const val = snap.val();
+  if (!val) return;
+  const incoming = objToArr(val);
+  const temps = prods.filter(p => p._temp || p._sub);
+  prods.length = 0;
+  incoming.forEach(p => prods.push(p));
+  temps.forEach(p => { if (!prods.find(x => x.bc === p.bc)) prods.push(p); });
+  if (typeof renderPosGrid === "function") renderPosGrid();
+  if (typeof renderStockTable === "function") renderStockTable();
+  if (typeof renderProfitTable === "function") renderProfitTable();
 });
 
-function startBridge(initialProds) {
+ref("cats").on("value", snap => {
+  const val = snap.val(); if (!val) return;
+  cats.length = 0; objToArr(val).forEach(c => cats.push(c));
+  if (typeof renderPosCatFilter === "function") renderPosCatFilter();
+  if (typeof renderStockCatChips === "function") renderStockCatChips();
+  if (typeof renderProfitCatChips === "function") renderProfitCatChips();
+  if (typeof renderCatSidebar === "function") renderCatSidebar();
+});
 
-  // ── LISTEN ──
-  fbListen('prods', val => {
-    if (!val) return;
-    const incoming = objToArr(val);
-    const temps = prods.filter(p => p._temp || p._sub);
-    prods.length = 0;
-    incoming.forEach(p => prods.push(p));
-    temps.forEach(p => { if (!prods.find(x => x.bc === p.bc)) prods.push(p); });
-    renderPosGrid(); renderStockTable(); renderProfitTable();
-  });
+ref("sales").on("value", snap => {
+  const val = snap.val();
+  sales.length = 0;
+  if (val) objToArr(val).sort((a, b) => b.id - a.id).forEach(s => sales.push(s));
+  if (document.getElementById("page-history")?.classList.contains("active") && typeof renderHistory === "function") renderHistory();
+  if (document.getElementById("page-home")?.classList.contains("active") && typeof renderHomePage === "function") renderHomePage();
+});
 
-  fbListen('cats', val => {
-    if (!val) return;
-    cats.length = 0; objToArr(val).forEach(c => cats.push(c));
-    renderPosCatFilter(); renderStockCatChips(); renderProfitCatChips(); renderCatSidebar();
-  });
+ref("expenses").on("value", snap => {
+  const val = snap.val();
+  expenses.length = 0;
+  if (val) objToArr(val).sort((a, b) => b.id - a.id).forEach(e => expenses.push(e));
+  if (document.getElementById("page-expense")?.classList.contains("active") && typeof renderExpenses === "function") renderExpenses();
+});
 
-  fbListen('sales', val => {
-    sales.length = 0;
-    if (val) objToArr(val).sort((a, b) => b.id - a.id).forEach(s => sales.push(s));
-    if (document.getElementById('page-history')?.classList.contains('active')) renderHistory();
-    if (document.getElementById('page-home')?.classList.contains('active')) renderHomePage();
-  });
+ref("staffList").on("value", snap => {
+  const val = snap.val(); if (!val) return;
+  staffList.length = 0; objToArr(val).forEach(s => staffList.push(s));
+  if (typeof renderLoginStaffGrid === "function") renderLoginStaffGrid();
+});
 
-  fbListen('expenses', val => {
-    expenses.length = 0;
-    if (val) objToArr(val).sort((a, b) => b.id - a.id).forEach(e => expenses.push(e));
-    if (document.getElementById('page-expense')?.classList.contains('active')) renderExpenses();
-  });
+ref("timeLogs").on("value", snap => {
+  const val = snap.val();
+  timeLogs.length = 0;
+  if (val) objToArr(val).forEach(l => timeLogs.push(l));
+});
 
-  fbListen('staffList', val => {
-    if (!val) return;
-    staffList.length = 0; objToArr(val).forEach(s => staffList.push(s));
-    renderLoginStaffGrid();
-  });
+ref("payMethods").on("value", snap => {
+  const val = snap.val(); if (!val) return;
+  payMethods.length = 0; objToArr(val).forEach(m => payMethods.push(m));
+});
 
-  fbListen('timeLogs', val => {
-    timeLogs.length = 0;
-    if (val) objToArr(val).forEach(l => timeLogs.push(l));
-  });
+ref("settings").on("value", snap => {
+  const val = snap.val(); if (!val) return;
+  if (val.ownerPin) ownerPin = val.ownerPin;
+  if (val.globalUnits && Array.isArray(val.globalUnits)) {
+    globalUnits.length = 0; val.globalUnits.forEach(u => globalUnits.push(u));
+  }
+  if (val.ROLE_PERMS) Object.assign(ROLE_PERMS, val.ROLE_PERMS);
+});
 
-  fbListen('payMethods', val => {
-    if (!val) return;
-    payMethods.length = 0; objToArr(val).forEach(m => payMethods.push(m));
-  });
+ref("cashDrawer").on("value", snap => {
+  const val = snap.val(); if (!val) return;
+  Object.assign(_cashDrawer, val);
+  if (typeof renderCashDrawerUI === "function") renderCashDrawerUI();
+});
 
-  fbListen('settings', val => {
-    if (!val) return;
-    if (val.ownerPin) ownerPin = val.ownerPin;
-    if (val.globalUnits && Array.isArray(val.globalUnits)) {
-      globalUnits.length = 0; val.globalUnits.forEach(u => globalUnits.push(u));
+// ── PATCH WRITES ──
+
+const _origSaveProd = window.saveProd;
+window.saveProd = function() {
+  _guard("saveProd", function() {
+    _origSaveProd();
+    var realProds = prods.filter(function(p) { return !p._temp && !p._sub; });
+    _debounce("saveProds", function() {
+      fbSet("prods", arrToObj(realProds, "bc"));
+      fbSet("cats", arrToObj(cats, "id"));
+    }, 300);
+  }, 500);
+};
+
+const _origSaveCat = window.saveCat;
+window.saveCat = function() {
+  _guard("saveCat", function() {
+    _origSaveCat();
+    _debounce("saveCats", function() { fbSet("cats", arrToObj(cats, "id")); }, 300);
+  }, 400);
+};
+
+const _origDeleteCat = window.deleteCat;
+window.deleteCat = function() {
+  _origDeleteCat();
+  _debounce("saveCats", function() { fbSet("cats", arrToObj(cats, "id")); }, 300);
+};
+
+const _origConfirmPay = window.confirmPay;
+window.confirmPay = function() {
+  _guard("confirmPay", function() {
+    _origConfirmPay();
+    var saleId = sales.length > 0 ? sales[0].id : null;
+    setTimeout(function() {
+      if (saleId) {
+        var s = sales.find(function(x) { return x.id === saleId; });
+        if (s) fbSet("sales/" + s.id, s);
+      }
+      var realProds = prods.filter(function(p) { return !p._temp && !p._sub; });
+      fbSet("prods", arrToObj(realProds, "bc"));
+    }, 50);
+  }, 500);
+};
+
+const _origDeleteSale = window.deleteSale;
+window.deleteSale = function(id) {
+  _origDeleteSale(id);
+  fbDel("sales/" + id);
+};
+
+const _origSaveEditSale = window.saveEditSale;
+window.saveEditSale = function() {
+  _guard("saveEditSale", function() {
+    var capturedId = _editSaleId;
+    _origSaveEditSale();
+    setTimeout(function() {
+      var s = sales.find(function(x) { return x.id === capturedId; }) || sales[0];
+      if (s) fbSet("sales/" + s.id, s);
+      var realProds = prods.filter(function(p) { return !p._temp && !p._sub; });
+      fbSet("prods", arrToObj(realProds, "bc"));
+    }, 50);
+  }, 500);
+};
+
+const _origSaveExpense = window.saveExpense;
+window.saveExpense = function() {
+  _guard("saveExpense", function() {
+    _origSaveExpense();
+    setTimeout(function() {
+      if (expenses.length > 0) fbSet("expenses/" + expenses[0].id, expenses[0]);
+    }, 50);
+  }, 400);
+};
+
+const _origDeleteExpense = window.deleteExpense;
+window.deleteExpense = function() {
+  var delId = editExpId;
+  _origDeleteExpense();
+  fbDel("expenses/" + delId);
+};
+
+const _origSaveStaff = window.saveStaff;
+window.saveStaff = function() {
+  _guard("saveStaff", function() {
+    _origSaveStaff();
+    _debounce("saveStaffList", function() { fbSet("staffList", arrToObj(staffList, "id")); }, 300);
+  }, 400);
+};
+
+const _origDeleteStaff = window.deleteStaff;
+window.deleteStaff = function() {
+  _origDeleteStaff();
+  _debounce("saveStaffList", function() { fbSet("staffList", arrToObj(staffList, "id")); }, 300);
+};
+
+const _origSaveOwnerPin = window.saveOwnerPin;
+if (_origSaveOwnerPin) window.saveOwnerPin = function() {
+  _origSaveOwnerPin(); fbSet("settings/ownerPin", ownerPin);
+};
+
+const _origAdjStockUnit = window.adjStockUnit;
+window.adjStockUnit = function(bc, unitIdx, d) {
+  _origAdjStockUnit(bc, unitIdx, d);
+  var p = getProd(bc);
+  if (p) {
+    _debounce("adjStock_" + bc, function() {
+      fbSet("prods/" + bc, p);
+      if (stockLog.length > 0) fbPush("stockLog", stockLog[0]);
+    }, 400);
+  }
+};
+
+const _origConfirmRestock = window.confirmRestock;
+window.confirmRestock = function() {
+  _guard("confirmRestock", function() {
+    _origConfirmRestock();
+    var p = getProd(restockBc);
+    if (p) fbSet("prods/" + p.bc, p);
+    if (stockLog.length > 0) fbPush("stockLog", stockLog[0]);
+  }, 500);
+};
+
+const _origSavePayMethod = window.savePayMethod;
+window.savePayMethod = function() {
+  _guard("savePayMethod", function() {
+    _origSavePayMethod();
+    _debounce("savePayMethods", function() { fbSet("payMethods", arrToObj(payMethods, "id")); }, 300);
+  }, 400);
+};
+
+const _origConfirmCashDrawer = window.confirmCashDrawer;
+window.confirmCashDrawer = function() {
+  _guard("confirmCashDrawer", function() {
+    _origConfirmCashDrawer();
+    fbSet("cashDrawer", _cashDrawer);
+  }, 400);
+};
+
+const _origCheckIn = window.doCheckIn;
+if (_origCheckIn) window.doCheckIn = function() {
+  _origCheckIn();
+  setTimeout(function() {
+    if (timeLogs.length > 0) {
+      var last = timeLogs[timeLogs.length - 1];
+      fbSet("timeLogs/" + last.id, last);
     }
-    if (val.ROLE_PERMS) Object.assign(ROLE_PERMS, val.ROLE_PERMS);
-  });
+  }, 100);
+};
 
-  fbListen('cashDrawer', val => {
-    if (!val) return;
-    Object.assign(_cashDrawer, val);
-    renderCashDrawerUI();
-  });
+const _origAddGlobalUnit = window.addGlobalUnit;
+if (_origAddGlobalUnit) window.addGlobalUnit = function() {
+  _origAddGlobalUnit(); fbSet("settings/globalUnits", globalUnits);
+};
 
-  // ── PATCH WRITES ──
-
-  const _origSaveProd = window.saveProd;
-  window.saveProd = function() {
-    _guard('saveProd', () => {
-      _origSaveProd();
-      const realProds = prods.filter(p => !p._temp && !p._sub);
-      _debounce('saveProds', () => {
-        fbSet('prods', arrToObj(realProds, 'bc'));
-        fbSet('cats', arrToObj(cats, 'id'));
-      }, 300);
-    }, 500);
-  };
-
-  const _origSaveCat = window.saveCat;
-  window.saveCat = function() {
-    _guard('saveCat', () => {
-      _origSaveCat();
-      _debounce('saveCats', () => fbSet('cats', arrToObj(cats, 'id')), 300);
-    }, 400);
-  };
-
-  const _origDeleteCat = window.deleteCat;
-  window.deleteCat = function() {
-    _origDeleteCat();
-    _debounce('saveCats', () => fbSet('cats', arrToObj(cats, 'id')), 300);
-  };
-
-  const _origConfirmPay = window.confirmPay;
-  window.confirmPay = function() {
-    _guard('confirmPay', () => {
-      _origConfirmPay();
-      const saleId = sales.length > 0 ? sales[0].id : null;
-      setTimeout(() => {
-        if (saleId) {
-          const s = sales.find(x => x.id === saleId);
-          if (s) fbSet('sales/' + s.id, s);
-        }
-        const realProds = prods.filter(p => !p._temp && !p._sub);
-        fbSet('prods', arrToObj(realProds, 'bc'));
-      }, 50);
-    }, 500);
-  };
-
-  const _origDeleteSale = window.deleteSale;
-  window.deleteSale = function(id) {
-    _origDeleteSale(id);
-    fbDelete('sales/' + id);
-  };
-
-  const _origSaveEditSale = window.saveEditSale;
-  window.saveEditSale = function() {
-    _guard('saveEditSale', () => {
-      const capturedId = _editSaleId;
-      _origSaveEditSale();
-      setTimeout(() => {
-        const s = sales.find(x => x.id === capturedId) || sales[0];
-        if (s) fbSet('sales/' + s.id, s);
-        const realProds = prods.filter(p => !p._temp && !p._sub);
-        fbSet('prods', arrToObj(realProds, 'bc'));
-      }, 50);
-    }, 500);
-  };
-
-  const _origSaveExpense = window.saveExpense;
-  window.saveExpense = function() {
-    _guard('saveExpense', () => {
-      _origSaveExpense();
-      setTimeout(() => {
-        if (expenses.length > 0) fbSet('expenses/' + expenses[0].id, expenses[0]);
-      }, 50);
-    }, 400);
-  };
-
-  const _origDeleteExpense = window.deleteExpense;
-  window.deleteExpense = function() {
-    const delId = editExpId;
-    _origDeleteExpense();
-    fbDelete('expenses/' + delId);
-  };
-
-  const _origSaveStaff = window.saveStaff;
-  window.saveStaff = function() {
-    _guard('saveStaff', () => {
-      _origSaveStaff();
-      _debounce('saveStaffList', () => fbSet('staffList', arrToObj(staffList, 'id')), 300);
-    }, 400);
-  };
-
-  const _origDeleteStaff = window.deleteStaff;
-  window.deleteStaff = function() {
-    _origDeleteStaff();
-    _debounce('saveStaffList', () => fbSet('staffList', arrToObj(staffList, 'id')), 300);
-  };
-
-  const _origSaveOwnerPin = window.saveOwnerPin;
-  window.saveOwnerPin = function() {
-    _origSaveOwnerPin();
-    fbSet('settings/ownerPin', ownerPin);
-  };
-
-  const _origAdjStockUnit = window.adjStockUnit;
-  window.adjStockUnit = function(bc, unitIdx, d) {
-    _origAdjStockUnit(bc, unitIdx, d);
-    const p = getProd(bc);
-    if (p) {
-      _debounce('adjStock_' + bc, () => {
-        fbSet('prods/' + bc, p);
-        fbPush('stockLog', stockLog[0] || {});
-      }, 400);
-    }
-  };
-
-  const _origConfirmRestock = window.confirmRestock;
-  window.confirmRestock = function() {
-    _guard('confirmRestock', () => {
-      _origConfirmRestock();
-      const p = getProd(restockBc);
-      if (p) fbSet('prods/' + p.bc, p);
-      if (stockLog.length > 0) fbPush('stockLog', stockLog[0]);
-    }, 500);
-  };
-
-  const _origSavePayMethod = window.savePayMethod;
-  window.savePayMethod = function() {
-    _guard('savePayMethod', () => {
-      _origSavePayMethod();
-      _debounce('savePayMethods', () => fbSet('payMethods', arrToObj(payMethods, 'id')), 300);
-    }, 400);
-  };
-
-  const _origConfirmCashDrawer = window.confirmCashDrawer;
-  window.confirmCashDrawer = function() {
-    _guard('confirmCashDrawer', () => {
-      _origConfirmCashDrawer();
-      fbSet('cashDrawer', _cashDrawer);
-    }, 400);
-  };
-
-  const _origCheckIn = window.doCheckIn;
-  if (_origCheckIn) {
-    window.doCheckIn = function() {
-      _origCheckIn();
-      setTimeout(() => {
-        if (timeLogs.length > 0) {
-          const last = timeLogs[timeLogs.length - 1];
-          fbSet('timeLogs/' + last.id, last);
-        }
-      }, 100);
-    };
+// ── Seed ถ้า DB ว่าง ──
+ref("prods").once("value", function(snap) {
+  if (!snap.val()) {
+    fbSet("prods", arrToObj(prods.filter(function(p) { return !p._temp && !p._sub; }), "bc"));
+    fbSet("cats", arrToObj(cats, "id"));
+    fbSet("payMethods", arrToObj(payMethods, "id"));
+    fbSet("settings", { ownerPin: ownerPin, globalUnits: globalUnits, ROLE_PERMS: ROLE_PERMS });
+    fbSet("staffList", arrToObj(staffList, "id"));
+    expenses.forEach(function(e) { fbSet("expenses/" + e.id, e); });
+    if (typeof toast === "function") toast("🌱 อัพโหลดข้อมูลเริ่มต้นแล้ว", "#1D9E75");
   }
-
-  const _origAddGlobalUnit = window.addGlobalUnit;
-  if (_origAddGlobalUnit) {
-    window.addGlobalUnit = function() {
-      _origAddGlobalUnit();
-      fbSet('settings/globalUnits', globalUnits);
-    };
-  }
-
-  // ── Initial seed ──
-  if (!initialProds) {
-    console.log('🌱 Seeding default data to Firebase...');
-    fbSet('prods', arrToObj(prods.filter(p => !p._temp && !p._sub), 'bc'));
-    fbSet('cats', arrToObj(cats, 'id'));
-    fbSet('payMethods', arrToObj(payMethods, 'id'));
-    fbSet('settings', { ownerPin, globalUnits, ROLE_PERMS });
-    fbSet('staffList', arrToObj(staffList, 'id'));
-    expenses.forEach(e => fbSet('expenses/' + e.id, e));
-    if (typeof toast === 'function') toast('🌱 อัพโหลดข้อมูลเริ่มต้นแล้ว', '#1D9E75');
-  }
-
-} // end startBridge
+});
 
 })();
 </script>
